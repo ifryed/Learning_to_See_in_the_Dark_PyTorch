@@ -5,13 +5,16 @@ import os
 
 import numpy as np
 import PIL.Image
-import scipy.io
+# import scipy.io
 import rawpy
 import torch
 from torch.utils import data
-import torchvision.transforms
+# import torchvision.transforms
 import time
 import utils
+
+DataGroup = {'train': '0', 'valid': '2', 'test': '1'}
+
 
 class RAW_Base(data.Dataset):
 
@@ -26,8 +29,9 @@ class RAW_Base(data.Dataset):
         """
         assert os.path.exists(root), "root: {} not found.".format(root)
         self.root = root
-        assert os.path.exists(image_list_file), "image_list_file: {} not found.".format(image_list_file)
+        # assert os.path.exists(image_list_file), "image_list_file: {} not found.".format(image_list_file)
         self.image_list_file = image_list_file
+        self.data_group = DataGroup[split]
         self.patch_size = patch_size
         self.split = split
         self.gt_png = gt_png
@@ -43,16 +47,23 @@ class RAW_Base(data.Dataset):
         self.png_long_read_time = utils.AverageMeter()
 
         self.img_info = []
-        with open(self.image_list_file, 'r') as f:
-            for i, img_pair in enumerate(f):
-                img_pair = img_pair.strip()  # ./Sony/short/10003_00_0.04s.ARW ./Sony/long/10003_00_10s.ARW ISO200 F9
-                img_file, lbl_file, iso, focus = img_pair.split(' ')
+        gt_files = [x for x in os.listdir(self.root + '/long') if x.startswith(self.data_group)]
+        gt_files = [x for x in gt_files if x.endswith(self.raw_ext)]
+        i = 0
+        for _, img_pair in enumerate(gt_files):
+            short_files = [x for x in os.listdir(os.path.join(self.root, 'short')) if
+                           x.startswith(img_pair[:img_pair.rfind('_')])]
+            short_files = [x for x in short_files if x.endswith(self.raw_ext)]
+            for short_path in short_files:
+                i += 1
+                lbl_file = os.path.join('long', img_pair)
+                img_file = os.path.join('short', short_path)
                 if self.split == 'test':
                     if os.path.split(img_file)[-1][5:8] != '_00':
                         continue
-                img_exposure = float(os.path.split(img_file)[-1][9:-5]) # 0.04
-                lbl_exposure = float(os.path.split(lbl_file)[-1][9:-5]) # 10
-                ratio = min(lbl_exposure/img_exposure, 300)
+                img_exposure = float(os.path.split(img_file)[-1][9:-5])  # 0.04
+                lbl_exposure = float(os.path.split(lbl_file)[-1][9:-5])  # 10
+                ratio = min(lbl_exposure / img_exposure, 300)
                 if self.gt_png:
                     lbl_file = lbl_file.replace("long", "gt").replace(self.raw_ext, "png")
                 self.img_info.append({
@@ -61,14 +72,13 @@ class RAW_Base(data.Dataset):
                     'img_exposure': img_exposure,
                     'lbl_exposure': lbl_exposure,
                     'ratio': ratio,
-                    'iso': iso,
-                    'focus': focus,
+                    'iso': 0,
+                    'focus': 0,
                 })
                 if i % 1000 == 0:
                     print("processing: {} images for {}".format(i, self.split))
                 if upper and i == upper - 1:  # for debug purpose
                     break
-
 
     def __len__(self):
         return len(self.img_info)
@@ -109,13 +119,12 @@ class RAW_Base(data.Dataset):
         input_full = input_full.transpose(2, 0, 1)  # C x H x W
         gt_full = gt_full.transpose(2, 0, 1)  # C x H x W
 
-
         if self.patch_size:
             # crop
             H, W = input_full.shape[1:3]
-            yy, xx = np.random.randint(0, H - self.patch_size),  np.random.randint(0, W - self.patch_size)
+            yy, xx = np.random.randint(0, H - self.patch_size), np.random.randint(0, W - self.patch_size)
             input_patch = input_full[:, yy:yy + self.patch_size, xx:xx + self.patch_size]
-            gt_patch = gt_full[:, yy*2:(yy + self.patch_size) * 2, xx*2:(xx + self.patch_size) * 2]
+            gt_patch = gt_full[:, yy * 2:(yy + self.patch_size) * 2, xx * 2:(xx + self.patch_size) * 2]
 
             if np.random.randint(2) == 1:  # random horizontal flip
                 input_patch = np.flip(input_patch, axis=2)
@@ -138,6 +147,7 @@ class RAW_Base(data.Dataset):
 
         return input_full, scale_full, gt_full, img_file, info['img_exposure'], info['lbl_exposure'], info['ratio']
 
+
 class Sony(RAW_Base):
     def __init__(self, root, image_list_file, split='train', patch_size=None, gt_png=True, use_camera_wb=False,
                  upper=None):
@@ -159,6 +169,7 @@ class Sony(RAW_Base):
                               im[1:H:2, 1:W:2, :],
                               im[1:H:2, 0:W:2, :]), axis=2)
         return out
+
 
 class Fuji(RAW_Base):
     def __init__(self, root, image_list_file, split='train', patch_size=None, gt_png=True, use_camera_wb=False,

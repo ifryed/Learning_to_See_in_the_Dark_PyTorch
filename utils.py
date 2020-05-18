@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 from skimage.measure import compare_ssim, compare_psnr
 
+
 def load_state_dict(model, fname):
     """
     Set parameters converted from Caffe models authors of VGGFace2 provide.
@@ -26,13 +27,16 @@ def load_state_dict(model, fname):
             try:
                 own_state[name].copy_(torch.from_numpy(param))
             except Exception:
-                raise RuntimeError('While copying the parameter named {}, whose dimensions in the model are {} and whose '\
-                                   'dimensions in the checkpoint are {}.'.format(name, own_state[name].size(), param.size()))
+                raise RuntimeError(
+                    'While copying the parameter named {}, whose dimensions in the model are {} and whose ' \
+                    'dimensions in the checkpoint are {}.'.format(name, own_state[name].size(), param.size()))
         else:
             raise KeyError('unexpected key "{}" in state_dict'.format(name))
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -48,9 +52,13 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+
 def get_psnr(im1, im2):
-    return compare_psnr(im1, im2, data_range=255)
+    h, w, _ = im1.shape
+    return compare_psnr(im1, im2[:h, :w, :], data_range=255)
+
 
 def get_ssim(im1, im2):
-    return compare_ssim(im1, im2, data_range=255, gaussian_weights=True, use_sample_covariance=False, multichannel=True)
-
+    h, w, _ = im1.shape
+    return compare_ssim(im1, im2[:h, :w, :], data_range=255, gaussian_weights=True, use_sample_covariance=False,
+                        multichannel=True)

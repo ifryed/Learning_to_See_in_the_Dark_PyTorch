@@ -39,21 +39,15 @@ def get_parameters(model, bias=False):
 def main():
     parser = argparse.ArgumentParser("Learning to See in the Dark PyTorch")
     parser.add_argument('cmd', type=str,  choices=['train', 'test'], help='train or test')
-    parser.add_argument('--arch_type', type=str, default='Sony', help='camera model type', choices=['Sony', 'Fuji'])
-    parser.add_argument('--dataset_dir', type=str, default='./dataset/', help='dataset directory')
+    parser.add_argument('--arch_type', type=str, default='Fuji', help='camera model type', choices=['Sony', 'Fuji'])
+    parser.add_argument('--dataset_dir', type=str, default='../image_enhance/SensorMapping/data/Fuji/', help='dataset directory')
     parser.add_argument('--log_file', type=str, default='./log/Sony/test.log', help='log file')
-    parser.add_argument('--train_img_list_file', type=str, default='./dataset/Sony_train_list.txt',
-                        help='text file containing image file names for training')
-    parser.add_argument('--valid_img_list_file', type=str, default='./dataset/Sony_val_list.txt',
-                        help='text file containing image file names for validation')
-    parser.add_argument('--test_img_list_file', type=str, default='./dataset/Sony_test_list.txt',
-                        help='text file containing image file names for test')
     parser.add_argument('--gt_png', action='store_true', help='uses preconverted png file as ground truth')
     parser.add_argument('--use_camera_wb', action='store_true', help='converts train RAW file to png')
     parser.add_argument('--valid_use_camera_wb', action='store_true', help='converts valid RAW file to png')
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoint/Sony/',
                         help='checkpoints directory')
-    parser.add_argument('--result_dir', type=str, default='./result/Sony/',
+    parser.add_argument('--result_dir', type=str, default='./result/',
                         help='directory where results are saved')
     parser.add_argument('-c', '--config', type=int, default=1, choices=configurations.keys(),
                         help='the number of settings and hyperparameters used in training')
@@ -68,12 +62,13 @@ def main():
     parser.add_argument('--upper_test', type=int, default=-1, help='max of test images(for debug)')
     parser.add_argument('--resume', type=str, default='', help='checkpoint file(for training or test)')
     parser.add_argument('--tf_weight_file', type=str, default='', help='weight file ported from TensorFlow')
-    parser.add_argument('--gpu', type=int, default=0, help='GPU id')
+    parser.add_argument('--gpu', type=int, default=-1, help='GPU id')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--pixel_shuffle', action='store_true',
                         help='uses pixel_shuffle in training')
     args = parser.parse_args()
+    args.result_dir += args.arch_type
 
     if args.cmd == 'train':
         os.makedirs(args.checkpoint_dir, exist_ok=True)
@@ -101,15 +96,15 @@ def main():
     kwargs = {'num_workers': args.workers, 'pin_memory': True} if cuda else {}
     dataset_class = datasets.__dict__[args.arch_type]
     if args.cmd == 'train':
-        dt = dataset_class(root, args.train_img_list_file, split='train', patch_size=args.patch_size,
+        dt = dataset_class(root, root, split='train', patch_size=args.patch_size,
                            gt_png=args.gt_png, use_camera_wb=args.use_camera_wb, upper=args.upper_train)
         train_loader = torch.utils.data.DataLoader(dt, batch_size=args.batch_size, shuffle=True, **kwargs)
-        dv = dataset_class(root, args.valid_img_list_file, split='valid',
+        dv = dataset_class(root, root, split='valid',
                            gt_png=args.gt_png, use_camera_wb=args.use_camera_wb, upper=args.upper_valid)
         val_loader = torch.utils.data.DataLoader(dv, batch_size=args.valid_batch_size, shuffle=False, **kwargs)
 
     if args.cmd == 'test':
-        dt = dataset_class(root, args.test_img_list_file, split='test',
+        dt = dataset_class(root, root, split='test',
                            gt_png=args.gt_png, use_camera_wb=args.use_camera_wb, upper=args.upper_test)
         test_loader = torch.utils.data.DataLoader(dt, batch_size=args.test_batch_size, shuffle=False, **kwargs)
 

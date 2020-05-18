@@ -64,9 +64,9 @@ class Trainer(object):
         self.use_camera_wb = use_camera_wb
 
     def print_log(self, log_str):
-        with open(self.log_file, 'a') as f:
-            f.write(log_str + '\n')
-
+        if os.path.exists(log_str):
+            with open(self.log_file, 'a') as f:
+                f.write(log_str + '\n')
 
     def validate(self):
         batch_time = utils.AverageMeter()
@@ -84,7 +84,7 @@ class Trainer(object):
                                                        self.iteration, self.epoch), ncols=80, leave=False):
             gc.collect()
             if self.cuda:
-                raws, targets = raws.cuda(), targets.cuda(async=True)
+                raws, targets = raws.cuda(), targets.cuda(non_blocking=True)
 
             with torch.no_grad():
                 raws = Variable(raws)
@@ -129,8 +129,8 @@ class Trainer(object):
             end = time.time()
             if batch_idx % self.print_freq == 0:
                 log_str = '{cmd:}: [{0}/{1}/{loss.count:}]\tepoch: {epoch:}\titer: {iteration:}\t' \
-                      'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                      'Loss: {loss.val:.4f} ({loss.avg:.4f})\tPSNR: {psnr.val:.2f} ({psnr.avg:.2f})\tSSIM: {ssim.val:.4f} ({ssim.avg:.4f})\t'.format(
+                          'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                          'Loss: {loss.val:.4f} ({loss.avg:.4f})\tPSNR: {psnr.val:.2f} ({psnr.avg:.2f})\tSSIM: {ssim.val:.4f} ({ssim.avg:.4f})\t'.format(
                     batch_idx, len(self.val_loader), cmd='Valid' if self.cmd == 'train' else 'Test',
                     epoch=self.epoch, iteration=self.iteration,
                     batch_time=batch_time, loss=losses, psnr=psnr, ssim=ssim)
@@ -142,8 +142,8 @@ class Trainer(object):
             self.best_psnr = max(psnr.avg, self.best_psnr)
 
             log_str = 'Valid_summary: [{0}/{1}/{psnr.count:}] epoch: {epoch:} iter: {iteration:}\t' \
-                  'BestPSNR: {best_psnr:.3f}\t' \
-                  'Time: {batch_time.avg:.3f}\tLoss: {loss.avg:.4f}\tPSNR: {psnr.avg:.3f}\t'.format(
+                      'BestPSNR: {best_psnr:.3f}\t' \
+                      'Time: {batch_time.avg:.3f}\tLoss: {loss.avg:.4f}\tPSNR: {psnr.avg:.3f}\t'.format(
                 batch_idx, len(self.val_loader), epoch=self.epoch, iteration=self.iteration,
                 best_psnr=self.best_psnr, batch_time=batch_time, loss=losses, psnr=psnr)
             print(log_str)
@@ -163,8 +163,9 @@ class Trainer(object):
             }, checkpoint_file)
             if is_best:
                 shutil.copy(checkpoint_file, os.path.join(self.checkpoint_dir, 'model_best.pth.tar'))
-            if (self.epoch + 1) % 10 == 0: # save each 10 epoch
-                shutil.copy(checkpoint_file, os.path.join(self.checkpoint_dir, 'checkpoint-{}.pth.tar'.format(self.epoch)))
+            if (self.epoch + 1) % 10 == 0:  # save each 10 epoch
+                shutil.copy(checkpoint_file,
+                            os.path.join(self.checkpoint_dir, 'checkpoint-{}.pth.tar'.format(self.epoch)))
 
             if training:
                 self.model.train()
@@ -194,11 +195,12 @@ class Trainer(object):
                 self.validate()
 
             if self.cuda:
-                raws, targets = raws.cuda(), targets.cuda(async=True)
+                raws, targets = raws.cuda(), targets.cuda(non_blocking=True)
             raws, targets = Variable(raws), Variable(targets)
 
             outputs = self.model(raws)
-            loss = self.criterion(outputs, targets)
+            _, _, h, w = outputs.shape
+            loss = self.criterion(outputs, targets[:, :, :h, :w])
             if np.isnan(float(loss.item())):
                 raise ValueError('loss is nan while training')
 
@@ -215,7 +217,8 @@ class Trainer(object):
                 psnr.update(utils.get_psnr(output, target), 1)
                 if self.result_dir:
                     os.makedirs(self.result_dir + '%04d' % self.epoch, exist_ok=True)
-                    fname = self.result_dir + '{:04d}/{:04d}_{}.jpg'.format(self.epoch, batch_idx, os.path.basename(img_file)[:-4])
+                    fname = self.result_dir + '{:04d}/{:04d}_{}.jpg'.format(self.epoch, batch_idx,
+                                                                            os.path.basename(img_file)[:-4])
                     temp = np.concatenate((target[:, :, :], output[:, :, :]), axis=1)
                     scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
 
@@ -229,9 +232,9 @@ class Trainer(object):
             end = time.time()
             if self.iteration % self.print_freq == 0:
                 log_str = 'Train: [{0}/{1}/{loss.count:}]\tepoch: {epoch:}\titer: {iteration:}\t' \
-                      'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                      'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t' \
-                      'Loss: {loss.val:.4f} ({loss.avg:.4f})\tPSNR: {psnr.val:.1f} ({psnr.avg:.1f})\tlr {lr:.6f}'.format(
+                          'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                          'Data: {data_time.val:.3f} ({data_time.avg:.3f})\t' \
+                          'Loss: {loss.val:.4f} ({loss.avg:.4f})\tPSNR: {psnr.val:.1f} ({psnr.avg:.1f})\tlr {lr:.6f}'.format(
                     batch_idx, len(self.train_loader), epoch=self.epoch, iteration=self.iteration,
                     lr=self.optim.param_groups[0]['lr'],
                     batch_time=batch_time, data_time=data_time, loss=losses, psnr=psnr)
@@ -242,14 +245,13 @@ class Trainer(object):
                 self.lr_scheduler.step()  # update lr
 
         log_str = 'Train_summary: [{0}/{1}/{loss.count:}]\tepoch: {epoch:}\titer: {iteration:}\t' \
-                      'Time: {batch_time.avg:.3f}\tData: {data_time.avg:.3f}\t' \
-                      'Loss: {loss.avg:.4f}\tPSNR: {psnr.avg:.1f}\tlr {lr:.6f}'.format(
-                    batch_idx, len(self.train_loader), epoch=self.epoch, iteration=self.iteration,
-                    lr=self.optim.param_groups[0]['lr'],
-                    batch_time=batch_time, data_time=data_time, loss=losses, psnr=psnr)
+                  'Time: {batch_time.avg:.3f}\tData: {data_time.avg:.3f}\t' \
+                  'Loss: {loss.avg:.4f}\tPSNR: {psnr.avg:.1f}\tlr {lr:.6f}'.format(
+            batch_idx, len(self.train_loader), epoch=self.epoch, iteration=self.iteration,
+            lr=self.optim.param_groups[0]['lr'],
+            batch_time=batch_time, data_time=data_time, loss=losses, psnr=psnr)
         print(log_str)
         self.print_log(log_str)
-
 
     def train(self):
         max_epoch = int(math.ceil(1. * self.max_iter / len(self.train_loader)))
@@ -262,7 +264,8 @@ class Trainer(object):
 
 class Validator(Trainer):
 
-    def __init__(self, cmd, cuda, model, criterion, val_loader, log_file, result_dir=None, use_camera_wb=False, print_freq=1):
+    def __init__(self, cmd, cuda, model, criterion, val_loader, log_file, result_dir=None, use_camera_wb=False,
+                 print_freq=1):
         super(Validator, self).__init__(cmd, cuda=cuda, model=model, criterion=criterion,
                                         val_loader=val_loader, log_file=log_file, print_freq=print_freq,
                                         optimizer=None, train_loader=None, max_iter=None,
@@ -271,4 +274,3 @@ class Validator(Trainer):
 
     def train(self):
         raise NotImplementedError
-
