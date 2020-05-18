@@ -114,10 +114,10 @@ class Trainer(object):
                         temp = np.concatenate((target[:, :, :], output[:, :, :]), axis=1)
                         # scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
                         temp = (255 * temp / temp.max())
-                        Image.fromarray(temp).save(fname)
+                        Image.fromarray(temp).save(fname).astype(np.uint8)
                         fname = os.path.join(self.result_dir, '{}_single.jpg'.format(os.path.basename(img_file)[:-4]))
                         # scipy.misc.toimage(output, high=255, low=0, cmin=0, cmax=255).save(fname)
-                        output = (255 * output / output.max())
+                        output = (255 * output / output.max()).astype(np.uint8)
                         Image.fromarray(output).save(fname)
 
                 # psnr.update(utils.get_psnr(output, target), 1)
@@ -226,7 +226,7 @@ class Trainer(object):
                                                                             os.path.basename(img_file)[:-4])
                     temp = np.concatenate((target[:, :, :], output[:, :, :]), axis=1)
                     # scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
-                    temp = (255 * temp / temp.max())
+                    temp = (255 * temp / temp.max()).astype(np.uint8)
                     Image.fromarray(temp).save(fname)
 
             # backprop
