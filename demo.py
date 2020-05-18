@@ -45,7 +45,7 @@ def main():
     parser.add_argument('--gt_png', action='store_true', help='uses preconverted png file as ground truth')
     parser.add_argument('--use_camera_wb', action='store_true', help='converts train RAW file to png')
     parser.add_argument('--valid_use_camera_wb', action='store_true', help='converts valid RAW file to png')
-    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoint/Sony/',
+    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoint/',
                         help='checkpoints directory')
     parser.add_argument('--result_dir', type=str, default='./result/',
                         help='directory where results are saved')
@@ -69,6 +69,7 @@ def main():
                         help='uses pixel_shuffle in training')
     args = parser.parse_args()
     args.result_dir += args.arch_type
+    args.checkpoint_dir += args.arch_type
 
     if args.cmd == 'train':
         os.makedirs(args.checkpoint_dir, exist_ok=True)
