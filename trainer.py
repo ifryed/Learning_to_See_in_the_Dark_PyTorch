@@ -9,6 +9,7 @@ import time
 import numpy as np
 import scipy.io
 import torch
+from PIL import Image
 from torch.autograd import Variable
 
 import utils
@@ -111,9 +112,11 @@ class Trainer(object):
                         os.makedirs(self.result_dir, exist_ok=True)
                         fname = os.path.join(self.result_dir, '{}_compare.jpg'.format(os.path.basename(img_file)[:-4]))
                         temp = np.concatenate((target[:, :, :], output[:, :, :]), axis=1)
-                        scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
+                        # scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
+                        Image.fromarray(temp).save(fname)
                         fname = os.path.join(self.result_dir, '{}_single.jpg'.format(os.path.basename(img_file)[:-4]))
-                        scipy.misc.toimage(output, high=255, low=0, cmin=0, cmax=255).save(fname)
+                        # scipy.misc.toimage(output, high=255, low=0, cmin=0, cmax=255).save(fname)
+                        Image.fromarray(output).save(fname)
 
                 # psnr.update(utils.get_psnr(output, target), 1)
                 _psnr = utils.get_psnr(output, target)
@@ -220,7 +223,8 @@ class Trainer(object):
                     fname = self.result_dir + '{:04d}/{:04d}_{}.jpg'.format(self.epoch, batch_idx,
                                                                             os.path.basename(img_file)[:-4])
                     temp = np.concatenate((target[:, :, :], output[:, :, :]), axis=1)
-                    scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
+                    # scipy.misc.toimage(temp, high=255, low=0, cmin=0, cmax=255).save(fname)
+                    Image.fromarray(temp).save(fname)
 
             # backprop
             self.optim.zero_grad()
