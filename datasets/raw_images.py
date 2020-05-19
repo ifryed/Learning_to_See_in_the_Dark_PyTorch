@@ -121,10 +121,12 @@ class RAW_Base(data.Dataset):
 
         if self.patch_size:
             # crop
+            scale_factor = np.sqrt(input_full.shape[-3]).astype(np.int)
             H, W = input_full.shape[1:3]
             yy, xx = np.random.randint(0, H - self.patch_size), np.random.randint(0, W - self.patch_size)
             input_patch = input_full[:, yy:yy + self.patch_size, xx:xx + self.patch_size]
-            gt_patch = gt_full[:, yy * 2:(yy + self.patch_size) * 2, xx * 2:(xx + self.patch_size) * 2]
+            gt_patch = gt_full[:, yy * scale_factor:(yy + self.patch_size) * scale_factor,
+                       xx * scale_factor:(xx + self.patch_size) * scale_factor]
 
             if np.random.randint(2) == 1:  # random horizontal flip
                 input_patch = np.flip(input_patch, axis=2)

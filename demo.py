@@ -54,7 +54,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--valid_batch_size', type=int, default=1, help='batch size in validation')
     parser.add_argument('--test_batch_size', type=int, default=1, help='batch size in test')
-    parser.add_argument('--patch_size', type=int, default=None, help='patch size')
+    parser.add_argument('--patch_size', type=int, default=512, help='patch size')
     parser.add_argument('--save_freq', type=int, default=1, help='checkpoint save frequency')
     parser.add_argument('--print_freq', type=int, default=1, help='log print frequency')
     parser.add_argument('--upper_train', type=int, default=-1, help='max of train images(for debug)')
