@@ -47,6 +47,7 @@ class RAW_Base(data.Dataset):
         self.png_long_read_time = utils.AverageMeter()
 
         self.img_info = []
+
         gt_files = [x for x in os.listdir(self.root + '/long') if x.startswith(self.data_group)]
         gt_files = [x for x in gt_files if x.endswith(self.raw_ext)]
         i = 0
@@ -79,6 +80,8 @@ class RAW_Base(data.Dataset):
                     print("processing: {} images for {}".format(i, self.split))
                 if upper and i == upper - 1:  # for debug purpose
                     break
+            self.gt_img = [None] * len(self.img_info)
+            self.raw_img = [dict()] * len(self.img_info)
 
     def __len__(self):
         return len(self.img_info)
@@ -86,13 +89,16 @@ class RAW_Base(data.Dataset):
     def __getitem__(self, index):
         info = self.img_info[index]
 
-        img_file = info['img']
-        start = time.time()
-        raw = rawpy.imread(os.path.join(self.root, img_file))
-        self.raw_short_read_time.update(time.time() - start)
-        start = time.time()
-        input_full = self.pack_raw(raw) * info['ratio']
-        self.raw_short_pack_time.update(time.time() - start)
+        if info['ratio'] not in self.raw_img[index]:
+            print('new raw')
+            img_file = info['img']
+            start = time.time()
+            raw = rawpy.imread(os.path.join(self.root, img_file))
+            self.raw_short_read_time.update(time.time() - start)
+            start = time.time()
+            self.raw_img[index][info['ratio']] = self.pack_raw(raw) * info['ratio']
+            self.raw_short_pack_time.update(time.time() - start)
+        input_full = self.raw_img[index][info['ratio']]
 
         scale_full = np.zeros((1, 1, 1), dtype=np.float32)
         if self.use_camera_wb:
@@ -102,22 +108,24 @@ class RAW_Base(data.Dataset):
             scale_full = np.float32(im / 65535.0)
 
         lbl_file = info['lbl']
-        if self.gt_png:
-            start = time.time()
-            gt_full = np.array(PIL.Image.open(os.path.join(self.root, lbl_file)), dtype=np.float32)
-            gt_full = gt_full / 255.0
-            self.png_long_read_time.update(time.time() - start)
-        else:
-            start = time.time()
-            lbl_raw = rawpy.imread(os.path.join(self.root, lbl_file))
-            self.raw_long_read_time.update(time.time() - start)
-            start = time.time()
-            im = lbl_raw.postprocess(use_camera_wb=True, half_size=False, no_auto_bright=True, output_bps=16)
-            self.raw_long_post_time.update(time.time() - start)
-            gt_full = np.float32(im / 65535.0)
+        if self.gt_img[index] is None:
+            print('new GT')
+            if self.gt_png:
+                start = time.time()
+                gt_full = np.array(PIL.Image.open(os.path.join(self.root, lbl_file)), dtype=np.float32)
+                self.gt_img[index] = gt_full / 255.0
+                self.png_long_read_time.update(time.time() - start)
+            else:
+                start = time.time()
+                lbl_raw = rawpy.imread(os.path.join(self.root, lbl_file))
+                self.raw_long_read_time.update(time.time() - start)
+                start = time.time()
+                im = lbl_raw.postprocess(use_camera_wb=True, half_size=False, no_auto_bright=True, output_bps=16)
+                self.raw_long_post_time.update(time.time() - start)
+                self.gt_img[index] = np.float32(im / 65535.0)
 
         input_full = input_full.transpose(2, 0, 1)  # C x H x W
-        gt_full = gt_full.transpose(2, 0, 1)  # C x H x W
+        gt_full = self.gt_img[index].transpose(2, 0, 1)  # C x H x W
 
         if self.patch_size:
             # crop
