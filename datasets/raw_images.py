@@ -89,9 +89,9 @@ class RAW_Base(data.Dataset):
     def __getitem__(self, index):
         info = self.img_info[index]
 
+        img_file = info['img']
         if info['ratio'] not in self.raw_img[index]:
-            print('new raw')
-            img_file = info['img']
+            print(self.split, ': new raw', index)
             start = time.time()
             raw = rawpy.imread(os.path.join(self.root, img_file))
             self.raw_short_read_time.update(time.time() - start)

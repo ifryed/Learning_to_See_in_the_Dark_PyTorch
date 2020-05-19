@@ -50,7 +50,7 @@ class Trainer(object):
         self.timestamp_start = datetime.datetime.now()
 
         if self.cmd == 'train':
-            self.interval_validate = len(self.train_loader) if interval_validate is None else interval_validate
+            self.interval_validate = 100 * len(self.train_loader) if interval_validate is None else interval_validate
 
         self.epoch = 0
         self.iteration = 0
@@ -220,7 +220,7 @@ class Trainer(object):
                 output = output.numpy().transpose(1, 2, 0) * 255
                 target = target.numpy().transpose(1, 2, 0) * 255
                 psnr.update(utils.get_psnr(output, target), 1)
-                if self.result_dir:
+                if self.result_dir and False:
                     os.makedirs(self.result_dir + '%04d' % self.epoch, exist_ok=True)
                     fname = self.result_dir + '{:04d}/{:04d}_{}.jpg'.format(self.epoch, batch_idx,
                                                                             os.path.basename(img_file)[:-4])

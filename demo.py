@@ -63,7 +63,7 @@ def main():
     parser.add_argument('--resume', type=str, default='', help='checkpoint file(for training or test)')
     parser.add_argument('--tf_weight_file', type=str, default='', help='weight file ported from TensorFlow')
     parser.add_argument('--gpu', type=int, default=-1, help='GPU id')
-    parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--pixel_shuffle', action='store_true',
                         help='uses pixel_shuffle in training')
